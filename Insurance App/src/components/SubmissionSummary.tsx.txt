@@ -1,0 +1,194 @@
+
+import React from 'react';
+import { FormData, HealthBundleDetails } from '../types';
+import { accidentOnlyPremiums } from '../constants';
+
+interface SubmissionSummaryProps {
+  formData: Partial<FormData>;
+  onSubmit: () => void;
+  onBack: () => void;
+}
+
+const formatLabel = (key: string) => {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+};
+
+const SummaryItem: React.FC<{ label: string; value?: string | null }> = ({ label, value }) => (
+  <div className="py-3 px-4 sm:px-6 sm:grid sm:grid-cols-3 sm:gap-4">
+    <dt className="text-sm font-medium text-zinc-500">{label}</dt>
+    <dd className="mt-1 text-sm text-zinc-900 sm:mt-0 sm:col-span-2 break-words">{value || 'Not provided'}</dd>
+  </div>
+);
+
+const DetailSection: React.FC<{title: string; data?: object | null}> = ({ title, data }) => {
+    if (!data || Object.keys(data).length === 0) return null;
+    return (
+        <div className="border-t border-zinc-200">
+            <h4 className="text-md font-medium bg-zinc-100 px-4 py-2 sm:px-6 text-zinc-700">{title}</h4>
+            <dl className="sm:divide-y sm:divide-zinc-200">
+                {Object.entries(data).filter(([key]) => key !== 'id').map(([key, value]) => (
+                    <SummaryItem key={key} label={formatLabel(key)} value={value} />
+                ))}
+            </dl>
+        </div>
+    );
+};
+
+const renderHealthBundleDetails = (details: Partial<HealthBundleDetails> | undefined) => {
+    if (!details || !details.productType) return null;
+
+    const { productType, coverageType, heightWeight, medicalConditions, lifestyle, plan, whoToProtect, monthlyBenefit } = details;
+
+    const productMap = {
+        hospitalization: 'Accident & Sickness (Hospitalization)',
+        disability: 'Disability Insurance',
+        critical_illness: 'Critical Illness',
+        add: 'Accidental Death & Dismemberment',
+    };
+    
+    const formattedData: Record<string, string> = {
+        'Selected Product': productMap[productType] || 'N/A'
+    };
+
+    if (productType === 'hospitalization' || productType === 'disability') {
+        formattedData['Coverage Type'] = { both: 'Both Accident & Sickness', accident: 'Accident Only', sickness: 'Sickness Only' }[coverageType || ''] || 'N/A';
+        
+        const showQualification = coverageType === 'sickness' || coverageType === 'both';
+        if (showQualification) {
+            formattedData['Height & Weight'] = heightWeight || 'Not provided';
+            if (medicalConditions) {
+                formattedData['Heart & Circulatory Conditions'] = medicalConditions.heart === 'yes' ? 'Yes' : 'No';
+                formattedData['Nervous System Conditions'] = medicalConditions.nervous === 'yes' ? 'Yes' : 'No';
+                formattedData['Blood/Glandular/Endocrine Conditions'] = medicalConditions.blood === 'yes' ? 'Yes' : 'No';
+                formattedData['Immune System Conditions (HIV/AIDS)'] = medicalConditions.immune === 'yes' ? 'Yes' : 'No';
+                formattedData['Cancer'] = medicalConditions.cancer === 'yes' ? 'Yes' : 'No';
+                if (productType === 'hospitalization') {
+                  formattedData['Diabetes (Type 1/2, before 40/Insulin)'] = medicalConditions.diabetes === 'yes' ? 'Yes' : 'No';
+                }
+            }
+            if (lifestyle) {
+                formattedData['Criminal Offence (past 5 yrs)'] = lifestyle.criminalOffence === 'yes' ? 'Yes' : 'No';
+                formattedData['Careless/Impaired Driving (past 2 yrs)'] = lifestyle.carelessDriving === 'yes' ? 'Yes' : 'No';
+                formattedData['Drug/Alcohol Treatment (past 5 yrs)'] = lifestyle.drugAlcohol === 'yes' ? 'Yes' : 'No';
+            }
+        }
+    }
+
+    if (productType === 'hospitalization') {
+        if (plan) {
+            formattedData['Selected Plan'] = { plan1: 'Plan 1 ($100/day)', plan2: 'Plan 2 ($200/day)', plan3: 'Plan 3 ($400/day)' }[plan] || 'N/A';
+        }
+        if (whoToProtect) {
+            formattedData['Protecting'] = { you: 'Yourself', family: 'You and Your Family' }[whoToProtect] || 'N/A';
+        }
+    }
+
+    if (productType === 'disability') {
+        if (monthlyBenefit) {
+            formattedData['Selected Monthly Benefit'] = `$${monthlyBenefit}`;
+        }
+    }
+    
+    const displayData: Record<string, string> = {};
+    Object.entries(formattedData).forEach(([key, value]) => {
+        if (value) displayData[key] = value;
+    });
+
+    return <DetailSection title="Health & Wellness Details" data={displayData} />;
+};
+
+
+const SubmissionSummary: React.FC<SubmissionSummaryProps> = ({ formData, onSubmit, onBack }) => {
+  const { insuranceType, productSubType } = formData;
+  let summaryTitle = insuranceType?.name || 'Quote Summary';
+  let summaryDescription = `For ${insuranceType?.name}`;
+
+  if (insuranceType?.id === 'home_auto' && productSubType) {
+    const titleMap: Record<string, string> = {
+        home_auto: 'Home & Auto Insurance',
+        home: 'Home Insurance',
+        auto: 'Auto Insurance'
+    };
+    summaryTitle = titleMap[productSubType];
+    summaryDescription = `For ${titleMap[productSubType]}`;
+  }
+
+
+  return (
+    <div className="animate-fade-in max-w-3xl mx-auto">
+      <h2 className="text-2xl sm:text-3xl font-bold text-center text-zinc-800 mb-2">Confirm Your Details</h2>
+      <p className="text-center text-zinc-600 mb-8">Please review your information before submitting.</p>
+      
+      <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+        <div className="px-4 py-5 sm:px-6 bg-zinc-50">
+          <h3 className="text-lg leading-6 font-medium text-zinc-900">{summaryTitle}</h3>
+          <p className="mt-1 max-w-2xl text-sm text-zinc-500">{summaryDescription}</p>
+        </div>
+        <div className="border-t border-zinc-200">
+            <dl className="sm:divide-y sm:divide-zinc-200">
+                <SummaryItem label="Full Name" value={formData.fullName} />
+                <SummaryItem label="Email Address" value={formData.email} />
+                <SummaryItem label="Phone Number" value={formData.phone} />
+            </dl>
+        </div>
+            
+        {formData.dynamicAnswers && (
+             <div className="border-t border-zinc-200">
+                <dl className="sm:divide-y sm:divide-zinc-200">
+                    {Object.entries(formData.dynamicAnswers).map(([key, value]) => (
+                        <SummaryItem key={key} label={formatLabel(key)} value={value as string} />
+                    ))}
+                </dl>
+            </div>
+        )}
+        
+        {renderHealthBundleDetails(formData.healthBundleDetails)}
+
+
+        {(() => {
+            const details = formData.healthBundleDetails;
+            if (details?.productType === 'hospitalization' && details?.coverageType === 'accident' && details.plan && details.whoToProtect) {
+                const premium = accidentOnlyPremiums[details.whoToProtect as 'you' | 'family']?.[details.plan as 'plan1' | 'plan2' | 'plan3'];
+
+                if (premium === undefined) return null;
+
+                return (
+                    <div className="border-t border-zinc-200">
+                        <h4 className="text-md font-medium bg-green-50 px-4 py-2 sm:px-6 text-green-800">Immediate Quote (Accident Only)</h4>
+                        <dl className="sm:divide-y sm:divide-zinc-200">
+                            <SummaryItem 
+                                label="Monthly Premium" 
+                                value={`$${premium}.00`} 
+                            />
+                        </dl>
+                    </div>
+                );
+            }
+            return null;
+        })()}
+
+        <DetailSection title="Home Insurance Details" data={formData.homeDetails} />
+
+        {formData.drivers?.map((driver, index) => (
+            <DetailSection key={driver?.id || index} title={`Driver ${index + 1} Information`} data={driver} />
+        ))}
+
+        {formData.vehicles?.map((vehicle, index) => (
+            <DetailSection key={vehicle?.id || index} title={`Vehicle ${index + 1} Details`} data={vehicle} />
+        ))}
+        
+      </div>
+      
+      <div className="flex flex-col-reverse sm:flex-row gap-4 mt-8">
+        <button onClick={onBack} className="w-full px-6 py-3 bg-zinc-100 text-zinc-700 font-semibold rounded-lg hover:bg-zinc-200 transition-colors">
+          Back
+        </button>
+        <button onClick={onSubmit} className="w-full px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors shadow-sm hover:shadow-md">
+          Submit Quote Request
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default SubmissionSummary;

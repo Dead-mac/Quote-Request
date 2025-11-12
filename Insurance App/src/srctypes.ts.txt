@@ -1,0 +1,116 @@
+
+import React from 'react';
+
+export interface InsuranceType {
+  id: string;
+  name: string;
+  description: string;
+  Icon: React.FC<React.SVGProps<SVGSVGElement>>;
+}
+
+export interface HomeDetails {
+  propertyAddress: string;
+  ownersOnTitle: string;
+  yearBuilt: string;
+  moveInDate: string;
+  houseStyle: string;
+  exteriorMaterial: string;
+  mainFloorSqFt: string;
+  basementType: string;
+  basementFinished: string;
+  roofTypeAndAge: string;
+  heatingSystem: string;
+  hotWaterTankAge: string;
+  electricalWiring: string;
+  plumbingType: string;
+  garage: string;
+  bathrooms: string;
+  kitchens: string;
+  fireplace: string;
+  securityFeatures: string;
+  otherRisks: string;
+  yearsInsured: string;
+  pastClaims: string;
+  currentPremium: string;
+  currentInsurer: string;
+  mortgageLienholder: string;
+}
+
+export interface Driver {
+  id: number;
+  fullName: string;
+  birthDate: string;
+  address: string;
+  licenseNumber: string;
+  dateFirstLicensed: string;
+  yearsContinuousInsurance: string;
+  primaryUse: string;
+  annualKMDriven: string;
+  ticketsOrSuspensions: string;
+  pastClaims: string;
+  currentAutoPremium: string;
+}
+
+export interface Vehicle {
+  id: number;
+  vin: string;
+  year: string;
+  make: string;
+  model: string;
+  trim: string;
+  purchaseDateAndPrice: string;
+  odometerReading: string;
+  usage: string;
+  parkingLocation: string;
+  modifications: string;
+  winterTires: string;
+  leaseOrLoan: string;
+}
+
+export interface HealthBundleDetails {
+  productType: 'hospitalization' | 'disability' | 'critical_illness' | 'add' | '';
+  
+  // Shared fields for qualification
+  coverageType?: 'both' | 'accident' | 'sickness' | '';
+  heightWeight?: string;
+  medicalConditions?: {
+    heart?: 'yes' | 'no' | '';
+    nervous?: 'yes' | 'no' | '';
+    blood?: 'yes' | 'no' | '';
+    immune?: 'yes' | 'no' | '';
+    cancer?: 'yes' | 'no' | '';
+    diabetes?: 'yes' | 'no' | '';
+  };
+  lifestyle?: {
+    criminalOffence?: 'yes' | 'no' | '';
+    carelessDriving?: 'yes' | 'no' | '';
+    drugAlcohol?: 'yes' | 'no' | '';
+  };
+
+  // Hospitalization specific
+  plan?: 'plan1' | 'plan2' | 'plan3' | '';
+  whoToProtect?: 'you' | 'family' | '';
+
+  // Disability specific
+  monthlyBenefit?: string;
+}
+
+export interface FormData {
+  insuranceType: InsuranceType;
+  productSubType?: 'home_auto' | 'home' | 'auto';
+  fullName: string;
+  email: string;
+  phone: string;
+  dynamicAnswers?: { [key: string]: string };
+  homeDetails?: Partial<HomeDetails>;
+  drivers?: Partial<Driver>[];
+  vehicles?: Partial<Vehicle>[];
+  healthBundleDetails?: Partial<HealthBundleDetails>;
+}
+
+export interface DynamicQuestion {
+  id: string;
+  label: string;
+  type: 'text' | 'date' | 'number' | 'textarea';
+  placeholder?: string;
+}

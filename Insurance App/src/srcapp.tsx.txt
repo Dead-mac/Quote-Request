@@ -1,0 +1,309 @@
+
+import React, { useState, useCallback, useEffect } from 'react';
+import { InsuranceType, FormData, DynamicQuestion } from './types';
+import { INSURANCE_TYPES, TOTAL_STEPS } from './constants';
+import { generateLeadQuestions } from './services/geminiService';
+import Stepper from './components/Stepper';
+import InsuranceTypeSelector from './components/InsuranceTypeSelector';
+import PersonalInfoForm from './components/PersonalInfoForm';
+import DynamicQuestionsForm from './components/DynamicQuestionsForm';
+import SubmissionSummary from './components/SubmissionSummary';
+import Loader from './components/Loader';
+import { CheckIcon } from './components/icons/CheckIcon';
+import HomeAutoForm from './components/HomeAutoForm';
+import AutoSaveIndicator from './components/AutoSaveIndicator';
+import HealthBundleForm from './components/HealthBundleForm';
+import InstagramFeed from './components/InstagramFeed';
+import AirbUpdates from './components/AirbUpdates';
+
+const SAVED_STATE_KEY = 'insurance-quote-autosave';
+
+type StaticFlowType = 'home_auto' | 'accident_sickness';
+
+interface AppState {
+  currentStep: number;
+  formData: Partial<FormData>;
+  dynamicQuestions: DynamicQuestion[];
+  staticFlowType: StaticFlowType | null;
+}
+
+const getInitialState = (): AppState => {
+  const savedStateJSON = localStorage.getItem(SAVED_STATE_KEY);
+  if (savedStateJSON) {
+    try {
+      const savedState = JSON.parse(savedStateJSON);
+      if (savedState.currentStep && savedState.formData) {
+        return savedState;
+      }
+    } catch (e) {
+      console.error("Failed to parse saved state from localStorage", e);
+      localStorage.removeItem(SAVED_STATE_KEY);
+    }
+  }
+  return {
+    currentStep: 1,
+    formData: {},
+    dynamicQuestions: [],
+    staticFlowType: null,
+  };
+};
+
+export default function App() {
+  const initialState = getInitialState();
+  const [currentStep, setCurrentStep] = useState(initialState.currentStep);
+  const [formData, setFormData] = useState<Partial<FormData>>(initialState.formData);
+  const [dynamicQuestions, setDynamicQuestions] = useState<DynamicQuestion[]>(initialState.dynamicQuestions);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [staticFlowType, setStaticFlowType] = useState<StaticFlowType | null>(initialState.staticFlowType);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [referralEmail, setReferralEmail] = useState('');
+
+  useEffect(() => {
+    if ((currentStep === 1 && Object.keys(formData).length === 0) || isSubmitted) {
+        return;
+    }
+
+    setAutoSaveStatus('saving');
+    const handler = setTimeout(() => {
+        const stateToSave: AppState = {
+            currentStep,
+            formData,
+            dynamicQuestions,
+            staticFlowType,
+        };
+        localStorage.setItem(SAVED_STATE_KEY, JSON.stringify(stateToSave));
+        setAutoSaveStatus('saved');
+        
+        const hideHandler = setTimeout(() => setAutoSaveStatus('idle'), 2000);
+        return () => clearTimeout(hideHandler);
+
+    }, 1000);
+
+    return () => clearTimeout(handler);
+  }, [currentStep, formData, dynamicQuestions, staticFlowType, isSubmitted]);
+
+  const handleInsuranceSelect = useCallback(async (insurance: InsuranceType) => {
+    setIsLoading(true);
+    setError(null);
+    setFormData({ insuranceType: insurance });
+    
+    const { id } = insurance;
+    const staticFlows: StaticFlowType[] = ['home_auto', 'accident_sickness'];
+    if (staticFlows.includes(id as StaticFlowType)) {
+      setStaticFlowType(id as StaticFlowType);
+      setCurrentStep(2);
+      setIsLoading(false);
+    } else {
+      setStaticFlowType(null);
+      try {
+        const questions = await generateLeadQuestions(insurance.name);
+        setDynamicQuestions(questions);
+        setCurrentStep(2);
+      } catch (err) {
+        setError('Failed to generate questions. Please try again.');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
+  const handlePersonalInfoSubmit = (data: Pick<FormData, 'fullName' | 'email' | 'phone'>) => {
+    setFormData(prev => ({ ...prev, ...data }));
+    setCurrentStep(3);
+  };
+  
+  const handleStaticFormSubmit = (data: Omit<FormData, 'insuranceType' | 'dynamicAnswers'>) => {
+    setFormData(prev => ({ ...prev, ...data }));
+    setCurrentStep(3);
+  };
+
+  const handleDynamicQuestionsSubmit = (answers: { [key: string]: string }) => {
+    setFormData(prev => ({ ...prev, dynamicAnswers: answers }));
+    setCurrentStep(4);
+  };
+
+  const handleSubmit = () => {
+    setIsLoading(true);
+    // Simulate API submission
+    setTimeout(() => {
+      console.log('Final Form Data:', formData);
+      const newSubmissionId = `ALB-INS-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      setSubmissionId(newSubmissionId);
+      setIsLoading(false);
+      setIsSubmitted(true);
+      localStorage.removeItem(SAVED_STATE_KEY);
+    }, 1500);
+  };
+  
+  const handleReferralSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      const subject = "Insurance Quote Recommendation";
+      const body = `Hi,\n\nI was just getting an insurance quote and thought you might be interested too. You can get a fast, free quote here:\n\n${window.location.href}\n\nThanks,`;
+      window.location.href = `mailto:${referralEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  const handleReset = () => {
+    setCurrentStep(1);
+    setFormData({});
+    setDynamicQuestions([]);
+    setError(null);
+    setIsSubmitted(false);
+    setSubmissionId(null);
+    setStaticFlowType(null);
+    setReferralEmail('');
+    localStorage.removeItem(SAVED_STATE_KEY);
+  };
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <div className="flex justify-center items-center h-64"><Loader /></div>;
+    }
+
+    if (error) {
+      return (
+        <div className="text-center text-red-600 bg-red-100 p-4 rounded-lg">
+          <p>{error}</p>
+          <button onClick={handleReset} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+            Start Over
+          </button>
+        </div>
+      );
+    }
+
+    if (isSubmitted) {
+      return (
+        <div className="text-center p-8 animate-fade-in">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pop-in">
+            <CheckIcon className="w-10 h-10 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-zinc-800 mb-2">Thank You!</h2>
+          <p className="text-zinc-600 mb-6">Your request has been submitted. An insurance specialist will contact you shortly.</p>
+          {submissionId && (
+            <div className="bg-zinc-100 p-4 rounded-lg my-6 max-w-md mx-auto">
+              <p className="text-zinc-600 text-sm">Your reference number is:</p>
+              <p className="text-xl font-bold text-zinc-800 tracking-wider mt-1">{submissionId}</p>
+            </div>
+          )}
+          <div className="flex flex-col items-center gap-4">
+            <button onClick={handleReset} className="w-full max-w-xs px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors shadow-sm hover:shadow-md">
+              Start a New Quote
+            </button>
+            <button onClick={handleReset} className="font-semibold text-teal-600 hover:text-teal-800 transition-colors hover:underline text-sm">
+              Back to Home
+            </button>
+          </div>
+
+          <div className="mt-12 pt-8 border-t border-zinc-200 max-w-md mx-auto">
+            <h3 className="text-lg font-bold text-zinc-800">Refer a Friend</h3>
+            <p className="text-zinc-600 mt-2 text-sm">Know someone who could use a great insurance quote? Let them know!</p>
+            <form onSubmit={handleReferralSubmit} className="mt-4 flex flex-col sm:flex-row gap-2">
+              <input 
+                type="email"
+                value={referralEmail}
+                onChange={(e) => setReferralEmail(e.target.value)}
+                placeholder="Friend's email address"
+                required
+                className="w-full px-4 py-2 bg-white border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:border-teal-500 focus:ring-teal-500/20"
+              />
+              <button type="submit" className="px-4 py-2 bg-zinc-700 text-white font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex-shrink-0">
+                Send Invite
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+    
+    if (staticFlowType) {
+        const props = { onSubmit: handleStaticFormSubmit, onBack: handleBack };
+        switch (currentStep) {
+            case 1: // Should not happen in static flow, but as a fallback
+                return <InsuranceTypeSelector types={INSURANCE_TYPES} onSelect={handleInsuranceSelect} />;
+            case 2:
+                if (staticFlowType === 'home_auto') return <HomeAutoForm {...props} />;
+                if (staticFlowType === 'accident_sickness') return <HealthBundleForm {...props} />;
+                return null;
+            case 3: return <SubmissionSummary formData={formData} onSubmit={handleSubmit} onBack={handleBack} />;
+            default: return <InsuranceTypeSelector types={INSURANCE_TYPES} onSelect={handleInsuranceSelect} />;
+        }
+    }
+
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-start">
+            <div className="lg:col-span-2">
+              <InsuranceTypeSelector types={INSURANCE_TYPES} onSelect={handleInsuranceSelect} />
+            </div>
+            <div className="lg:col-span-1 space-y-8">
+              <InstagramFeed />
+              <AirbUpdates />
+            </div>
+          </div>
+        );
+      case 2:
+        return <PersonalInfoForm onSubmit={handlePersonalInfoSubmit} onBack={handleBack} initialData={formData} />;
+      case 3:
+        return <DynamicQuestionsForm questions={dynamicQuestions} onSubmit={handleDynamicQuestionsSubmit} onBack={handleBack} />;
+      case 4:
+        return <SubmissionSummary formData={formData} onSubmit={handleSubmit} onBack={handleBack} />;
+      default:
+        return <InsuranceTypeSelector types={INSURANCE_TYPES} onSelect={handleInsuranceSelect} />;
+    }
+  };
+
+  const isStaticFlow = !!staticFlowType;
+  const totalSteps = isStaticFlow ? 3 : TOTAL_STEPS;
+  const stepperLabels = isStaticFlow ? ['Insurance Type', 'Your Details', 'Confirm'] : undefined;
+
+  return (
+    <div className="min-h-screen bg-zinc-100 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-6xl mx-auto">
+        <header className="text-center mb-8">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-zinc-800 tracking-tight">Daniel Mac Insurance</h1>
+          <p className="mt-2 text-lg text-zinc-600">Insurance Quotes for Albertans • Fast, Free, and No Obligation</p>
+        </header>
+        
+        <main className="bg-white rounded-2xl shadow-xl shadow-zinc-200/60 overflow-hidden flex flex-col">
+          <div className="p-6 sm:p-10 flex-grow">
+            {!isSubmitted && currentStep > 1 && <Stepper currentStep={currentStep} totalSteps={totalSteps} labels={stepperLabels} />}
+            <div className={`transition-opacity duration-500 ease-in-out ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
+              {renderContent()}
+            </div>
+          </div>
+          {!isSubmitted && (
+            <div className="px-6 sm:px-10 py-3 border-t border-zinc-100 bg-zinc-50/50 h-12 flex items-center">
+              <AutoSaveIndicator status={autoSaveStatus} />
+            </div>
+          )}
+        </main>
+        <footer className="text-center mt-8 text-zinc-500 text-sm">
+          <p>&copy; {new Date().getFullYear()} Alberta Insurance Solutions. All rights reserved.</p>
+          <p>Proudly serving Alberta, Canada.</p>
+          <div className="mt-4 space-y-1">
+            <p>
+              <a href="mailto:Daniel.macintosh@insureline.com" className="hover:text-teal-600 hover:underline">
+                Daniel.macintosh@insureline.com
+              </a>
+            </p>
+            <p>
+              <a href="https://www.instagram.com/daniel_mac_insurance" target="_blank" rel="noopener noreferrer" className="hover:text-teal-600 hover:underline">
+                @daniel_mac_insurance
+              </a>
+            </p>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}
