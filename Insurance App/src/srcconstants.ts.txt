@@ -1,0 +1,71 @@
+
+import { InsuranceType } from './types';
+import { BuildingIcon } from './components/icons/BuildingIcon';
+import { PlaneIcon } from './components/icons/PlaneIcon';
+import { HeartbeatIcon } from './components/icons/HeartbeatIcon';
+import { HomeCarIcon } from './components/icons/HomeCarIcon';
+
+
+export const INSURANCE_TYPES: InsuranceType[] = [
+  { 
+    id: 'home_auto', 
+    name: 'Home & Auto Insurance', 
+    description: 'Protect your property and vehicle. Select home, auto, or both.',
+    Icon: HomeCarIcon
+  },
+  { 
+    id: 'accident_sickness', 
+    name: 'Accident & Sickness', 
+    description: 'Select a policy like Disability, Critical Illness, and more.', 
+    Icon: HeartbeatIcon
+  },
+  { 
+    id: 'commercial', 
+    name: 'Commercial Insurance', 
+    description: 'Protect your business from risks.', 
+    Icon: BuildingIcon
+  },
+  { 
+    id: 'travel', 
+    name: 'Travel Insurance', 
+    description: 'Coverage for trips and vacations.', 
+    Icon: PlaneIcon
+  },
+];
+
+export const TOTAL_STEPS = 4;
+
+export const HOME_FAQS = [
+  {
+    q: 'Why do you need my property address?',
+    a: 'The location of your property is a primary factor in determining your premium. It helps us assess risks related to neighbourhood, proximity to fire stations, and local weather patterns.',
+  },
+  {
+    q: 'What if I don\'t know the exact year my roof was replaced?',
+    a: 'An approximation is perfectly fine. The age and material of your roof are important for calculating potential risks from weather, so your best estimate helps us create a more accurate quote.',
+  },
+  {
+    q: 'Does a security system actually lower my premium?',
+    a: 'Yes, in most cases! A monitored security system can significantly reduce the risk of theft and damage, which often translates into a discount on your home insurance.',
+  },
+];
+
+export const AUTO_FAQS = [
+  {
+    q: 'Why do you need all household drivers?',
+    a: 'Insurers need to know about all licensed drivers in the household who may have access to the vehicle, as this affects the overall risk profile of the policy.',
+  },
+  {
+    q: 'What counts as "continuous insurance"?',
+    a: 'This refers to the number of years you have maintained auto insurance without any gaps in coverage (e.g., a period of more than 30 days without insurance). A longer history of continuous coverage can lead to significant discounts.',
+  },
+  {
+    q: 'Do I need to list minor parking tickets?',
+    a: 'Generally, you only need to disclose moving violations (like speeding tickets) or more serious infractions. Minor, non-moving violations like parking tickets typically do not affect your insurance rates.',
+  },
+];
+
+export const accidentOnlyPremiums: Record<'you' | 'family', Record<'plan1' | 'plan2' | 'plan3', number>> = {
+  you: { plan1: 14, plan2: 28, plan3: 56 },
+  family: { plan1: 34, plan2: 68, plan3: 136 },
+};

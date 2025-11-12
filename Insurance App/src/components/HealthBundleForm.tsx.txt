@@ -1,0 +1,290 @@
+
+import React, { useState } from 'react';
+import { FormData as AppFormData, HealthBundleDetails } from '../types';
+import { FormField, FormSection, RadioGroup, SelectionCard } from './FormElements';
+import { SicknessIcon } from './icons/SicknessIcon';
+import { AccidentIcon } from './icons/AccidentIcon';
+
+interface HealthBundleFormProps {
+  onSubmit: (data: Omit<AppFormData, 'insuranceType' | 'dynamicAnswers'>) => void;
+  onBack: () => void;
+}
+
+type FormState = Omit<AppFormData, 'insuranceType' | 'dynamicAnswers'>;
+
+const productOptions = [
+    { value: 'hospitalization', label: 'Accident & Sickness (Hospitalization)' },
+    { value: 'disability', label: 'Disability Insurance' },
+    { value: 'critical_illness', label: 'Critical Illness' },
+    { value: 'add', label: 'Accidental Death & Dismemberment' },
+];
+
+const productDescriptions: Record<string, string> = {
+    hospitalization: 'A policy that pays cash directly to you to help pay out-of-pocket costs when you face an unexpected accident or sickness.',
+    disability: 'A policy that pays benefits directly to you when an accident or sickness prevents you from working.',
+    critical_illness: 'Provides a lump-sum payment if you are diagnosed with a major illness covered by the policy.',
+    add: 'Provides a benefit in the case of death or severe injury resulting from an accident.',
+};
+
+const qualificationQuestions = {
+    medical: [
+        { name: 'heart', label: 'Heart & Circulatory System Issues?', details: 'e.g., Aneurysm, Angina, Atrial Fibrillation, Heart Attack' },
+        { name: 'nervous', label: 'Nervous System Issues?', details: 'e.g., Alzheimers, ALS, Stroke, Multiple Sclerosis' },
+        { name: 'blood', label: 'Blood, Glandular, or Endocrine System Issues?', details: 'e.g., Hemophilia, Hyperthyroidism, Diabetes Insipidus' },
+        { name: 'immune', label: 'Immune System Issues?', details: 'e.g., HIV, AIDS, or ARC' },
+        { name: 'cancer', label: 'Cancer of any kind?', details: 'Including skin cancer' },
+        { name: 'diabetes', label: 'Diabetes (Type 1/2, diagnosed before 40, or Insulin Dependent)?', details: 'For Hospitalization plan', forProduct: 'hospitalization' },
+    ],
+    lifestyle: [
+        { name: 'criminalOffence', label: 'Arrested, charged, or convicted of a criminal offence (past 5 yrs)?'},
+        { name: 'carelessDriving', label: 'Charged with careless/impaired driving (past 2 yrs)?'},
+        { name: 'drugAlcohol', label: 'Treated for drug/alcohol use (past 5 yrs)?'},
+    ]
+};
+
+const monthlyBenefitOptions = [
+    { benefit: '500', income: 'N/A' }, { benefit: '750', income: '15,000' }, { benefit: '1000', income: '20,000' },
+    { benefit: '1250', income: '25,000' }, { benefit: '1500', income: '30,000' }, { benefit: '1750', income: '35,000' },
+    { benefit: '2000', income: '40,000' }, { benefit: '2250', income: '45,000' }, { benefit: '2500', income: '50,000' },
+    { benefit: '2750', income: '55,000' }, { benefit: '3000', income: '60,000' },
+];
+
+const HealthBundleForm: React.FC<HealthBundleFormProps> = ({ onSubmit, onBack }) => {
+  const [formStep, setFormStep] = useState(1);
+  const [isKnockedOut, setIsKnockedOut] = useState(false);
+  const [formData, setFormData] = useState<FormState>({
+    fullName: '', email: '', phone: '',
+    healthBundleDetails: { productType: '', coverageType: '', plan: '', whoToProtect: '', monthlyBenefit: '', medicalConditions: {}, lifestyle: {} },
+  });
+
+  const setDetail = (key: keyof HealthBundleDetails, value: any) => {
+    setFormData(prev => ({ ...prev, healthBundleDetails: { ...prev.healthBundleDetails, [key]: value }}));
+  };
+  
+  const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSubmit(formData); };
+
+  const handleQualificationChange = (group: 'medical' | 'lifestyle', name: string, value: 'yes' | 'no') => {
+      if (group === 'medical' && value === 'yes') {
+          setIsKnockedOut(true);
+      } else {
+          const detailKey = group === 'medical' ? 'medicalConditions' : 'lifestyle';
+          const currentGroupState = formData.healthBundleDetails?.[detailKey] || {};
+          setDetail(detailKey, { ...currentGroupState, [name]: value });
+      }
+  };
+
+  const nextStep = () => setFormStep(p => p + 1);
+  const prevStep = () => {
+    if (formStep > 1) {
+        setFormStep(p => p - 1);
+    } else {
+        onBack();
+    }
+  }
+
+  const { productType, coverageType } = formData.healthBundleDetails || {};
+  const showSicknessQualification = productType && (coverageType === 'sickness' || coverageType === 'both');
+
+  const getStepTitle = (step: number): string => {
+    const isDisability = productType === 'disability';
+    const isHospitalization = productType === 'hospitalization';
+    const baseSteps = ['Select Product'];
+
+    if (isDisability || isHospitalization) {
+      baseSteps.push('Choose Coverage');
+      if (showSicknessQualification) {
+        baseSteps.push('Pre-Qualification');
+      }
+      baseSteps.push(isDisability ? 'Select Benefit' : 'Select Plan');
+      if (isHospitalization) {
+        baseSteps.push('Who to Protect');
+      }
+    }
+    baseSteps.push('Contact Info');
+    return `Step ${step}: ${baseSteps[step-1] || ''}`;
+  }
+  
+  if (isKnockedOut) {
+    return (
+      <div className="text-center p-8 animate-fade-in">
+        <h2 className="text-2xl font-bold text-zinc-800 mb-2">Thank You For Your Interest!</h2>
+        <p className="text-zinc-600 mb-6 max-w-lg mx-auto">
+          Based on your answers, your situation requires a more personalized review. Please send us an email to speak with a specialist who can better assist you with your specific needs.
+        </p>
+        <div className="flex flex-col items-center gap-4">
+            <a href="mailto:Daniel.macintosh@combinedagent.com" className="w-full max-w-xs px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors shadow-sm hover:shadow-md">
+                Email Us Now
+            </a>
+            <button onClick={onBack} className="font-semibold text-teal-600 hover:text-teal-800 transition-colors hover:underline text-sm">
+                Back to Services
+            </button>
+        </div>
+      </div>
+    );
+  }
+
+  const renderStepContent = () => {
+    let nextFormStep = formStep;
+
+    switch(formStep) {
+        case 1:
+            return (
+                <div className="md:col-span-2">
+                    <label htmlFor="productType" className="block text-sm font-medium text-zinc-700 mb-1">
+                        What type of coverage are you looking for?
+                    </label>
+                    <select
+                        id="productType" name="productType" value={productType}
+                        onChange={e => setDetail('productType', e.target.value as HealthBundleDetails['productType'])}
+                        className="w-full px-4 py-3 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:border-teal-500 focus:ring-teal-500/20"
+                    >
+                        <option value="" disabled>-- Select a Product --</option>
+                        {productOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                    {productType && (
+                        <div className="mt-3 text-sm text-zinc-600 bg-zinc-50 p-3 rounded-lg border border-zinc-200 animate-fade-in">
+                            <p>{productDescriptions[productType]}</p>
+                        </div>
+                    )}
+                </div>
+            );
+        case 2:
+            if (productType !== 'hospitalization' && productType !== 'disability') {
+              nextFormStep = 6; // Skip to contact info for other products
+              break;
+            }
+            return (
+              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <SelectionCard title="Both Accident & Sickness" icons={<><AccidentIcon className="w-6 h-6" /><SicknessIcon className="w-6 h-6"/></>} selected={coverageType === 'both'} onClick={() => setDetail('coverageType', 'both')} />
+                  <SelectionCard title="Accident Only" icons={<AccidentIcon className="w-6 h-6" />} selected={coverageType === 'accident'} onClick={() => setDetail('coverageType', 'accident')} />
+                  <SelectionCard title="Sickness Only" icons={<SicknessIcon className="w-6 h-6" />} selected={coverageType === 'sickness'} onClick={() => setDetail('coverageType', 'sickness')} />
+              </div>
+            );
+        case 3:
+            if (!showSicknessQualification) {
+              nextFormStep = 4; // Skip to next step
+              break;
+            }
+            return (
+                 <>
+                    <div className="md:col-span-2 text-sm text-zinc-600 bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                        <p>Have you received treatment, been diagnosed with, or sought medical advice for any of the following medical conditions within the past five (5) years?</p>
+                    </div>
+                    {qualificationQuestions.medical
+                      .filter(q => !q.forProduct || q.forProduct === productType)
+                      .map(q => (
+                        <RadioGroup key={q.name} name={`medical.${q.name}`} legend={<><span className="font-semibold">{q.label}</span><span className="font-normal text-zinc-500 ml-1 text-xs">({q.details})</span></>} options={[{label: 'Yes', value: 'yes'}, {label: 'No', value: 'no'}]} selectedValue={formData.healthBundleDetails?.medicalConditions?.[q.name as keyof typeof formData.healthBundleDetails.medicalConditions] || ''} onChange={value => handleQualificationChange('medical', q.name, value as 'yes' | 'no')} />
+                    ))}
+                    <div className="md:col-span-2 mt-4 border-t border-zinc-200 pt-4">
+                      {qualificationQuestions.lifestyle.map(q => (
+                         <RadioGroup key={q.name} name={`lifestyle.${q.name}`} legend={<span className="font-semibold">{q.label}</span>} options={[{label: 'Yes', value: 'yes'}, {label: 'No', value: 'no'}]} selectedValue={formData.healthBundleDetails?.lifestyle?.[q.name as keyof typeof formData.healthBundleDetails.lifestyle] || ''} onChange={value => handleQualificationChange('lifestyle', q.name, value as 'yes' | 'no')} />
+                      ))}
+                    </div>
+                 </>
+            );
+        case 4:
+            if (productType === 'hospitalization') {
+                return (
+                    <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <SelectionCard title="Plan 1 ($100/day)" subtext="★" selected={formData.healthBundleDetails?.plan === 'plan1'} onClick={() => setDetail('plan', 'plan1')} className="items-center" />
+                        <SelectionCard title="Plan 2 ($200/day)" subtext="★★" selected={formData.healthBundleDetails?.plan === 'plan2'} onClick={() => setDetail('plan', 'plan2')} className="items-center" />
+                        <SelectionCard title="Plan 3 ($400/day)" subtext="★★★" selected={formData.healthBundleDetails?.plan === 'plan3'} onClick={() => setDetail('plan', 'plan3')} className="items-center" />
+                    </div>
+                );
+            }
+            if (productType === 'disability') {
+                 return (
+                    <>
+                        <div className="md:col-span-2 text-sm text-zinc-600"><p>If you're currently employed, match the monthly benefit amount to your gross annual income.</p></div>
+                        <div className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                           {monthlyBenefitOptions.map(({ benefit, income }) => (
+                                <SelectionCard key={benefit} title={`$${parseInt(benefit, 10).toLocaleString()}`} subtext={income !== 'N/A' ? `Req: $${parseInt(income, 10).toLocaleString()}+ income` : 'No income required'} selected={formData.healthBundleDetails?.monthlyBenefit === benefit} onClick={() => setDetail('monthlyBenefit', benefit)} />
+                           ))}
+                        </div>
+                    </>
+                 );
+            }
+            nextFormStep = 6;
+            break;
+        case 5:
+            if (productType !== 'hospitalization') {
+              nextFormStep = 6;
+              break;
+            }
+            return (
+                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <SelectionCard title="You" icons={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>} selected={formData.healthBundleDetails?.whoToProtect === 'you'} onClick={() => setDetail('whoToProtect', 'you')} />
+                    <SelectionCard title="You and Your Family" icons={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197m0 0A5.995 5.995 0 0012 12a5.995 5.995 0 00-3-5.197M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} selected={formData.healthBundleDetails?.whoToProtect === 'family'} onClick={() => setDetail('whoToProtect', 'family')} />
+                </div>
+            );
+        case 6:
+            return (
+                <>
+                    <FormField id="fullName" name="fullName" label="Full Name" value={formData.fullName} onChange={handleContactChange} />
+                    <FormField id="phone" name="phone" label="Phone Number" value={formData.phone} onChange={handleContactChange} />
+                    <FormField id="email" name="email" label="Email Address" value={formData.email} onChange={handleContactChange} />
+                </>
+            );
+        default:
+            return null;
+    }
+
+    if (nextFormStep !== formStep) {
+      // This is a bit of a hack to skip steps in a single render cycle
+      // A more robust solution might use a state machine or reducer
+      setTimeout(() => setFormStep(nextFormStep), 0);
+      return null;
+    }
+  }
+
+  const isLastStep = () => {
+    if (productType === 'critical_illness' || productType === 'add') return formStep === 1; // It will skip to 6, so effectively this is the last data entry step before contact info.
+    if (productType === 'disability') {
+      if (showSicknessQualification) return formStep === 4;
+      return formStep === 3;
+    }
+    if (productType === 'hospitalization') {
+      if (showSicknessQualification) return formStep === 5;
+      return formStep === 4;
+    }
+    return false; // Should not happen
+  };
+
+  const effectiveNextStep = isLastStep() ? 6 : formStep + 1;
+  
+  return (
+    <div className="animate-fade-in">
+      <div className="text-center">
+        <h2 className="text-2xl sm:text-3xl font-bold text-zinc-800 mb-2">Health & Wellness Quote</h2>
+        <p className="text-zinc-600 max-w-2xl mx-auto">A few simple steps to get your personalized quote.</p>
+      </div>
+      <form onSubmit={handleSubmit} className="mt-8 max-w-3xl mx-auto">
+        <FormSection title={getStepTitle(formStep)}>
+            {renderStepContent()}
+        </FormSection>
+
+        <div className="flex flex-col-reverse sm:flex-row gap-4 pt-8 mt-8 border-t border-zinc-200">
+          <button type="button" onClick={prevStep} className="w-full px-6 py-3 bg-zinc-100 text-zinc-700 font-semibold rounded-lg hover:bg-zinc-200 transition-colors">
+            Back
+          </button>
+          {formStep === 6 ? (
+            <button type="submit" className="w-full px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors shadow-sm hover:shadow-md">
+                Continue to Summary
+            </button>
+          ) : (
+             <button type="button" onClick={() => setFormStep(effectiveNextStep)} className="w-full px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors shadow-sm hover:shadow-md">
+                Continue
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default HealthBundleForm;
