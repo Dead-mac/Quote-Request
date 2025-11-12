@@ -1,0 +1,62 @@
+import { GoogleGenAI, Type } from "@google/genai";
+import { DynamicQuestion } from '../types';
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+export async function generateLeadQuestions(insuranceType: string): Promise<DynamicQuestion[]> {
+  try {
+    const prompt = `You are an expert in the Canadian insurance industry, specifically in Alberta. Your task is to generate a short list of 3 to 4 simple, essential questions for a lead generation web form. These questions should be easy for a user to answer without needing to look up documents.
+
+The user has selected the following insurance type: "${insuranceType}".
+
+Generate questions that will help an insurance broker start a conversation with the lead. Avoid overly technical or intrusive questions (e.g., no SIN, no driver's license number). The 'id' for each question should be a unique, camelCase string derived from the label.
+
+Return the questions as a JSON array that matches the provided schema.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { 
+                type: Type.STRING,
+                description: 'A unique camelCase identifier for the question, e.g., "propertyAddress".'
+              },
+              label: { 
+                type: Type.STRING,
+                description: 'The question text to display to the user.'
+              },
+              type: {
+                type: Type.STRING,
+                enum: ['text', 'date', 'number', 'textarea'],
+                description: 'The input type for the form field.'
+              },
+              placeholder: {
+                type: Type.STRING,
+                description: 'Optional placeholder text for the input field.'
+              },
+            },
+            required: ['id', 'label', 'type'],
+          },
+        },
+      },
+    });
+    
+    const jsonString = response.text.trim();
+    const questions = JSON.parse(jsonString);
+
+    if (!Array.isArray(questions)) {
+      throw new Error("API did not return a valid array of questions.");
+    }
+
+    return questions as DynamicQuestion[];
+  } catch (error) {
+    console.error("Error generating lead questions:", error);
+    throw new Error("Failed to communicate with the AI model.");
+  }
+}

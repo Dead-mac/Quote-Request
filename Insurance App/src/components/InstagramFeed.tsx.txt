@@ -1,0 +1,48 @@
+
+import React from 'react';
+import { InstagramIcon } from './icons/InstagramIcon';
+
+const InstagramFeed: React.FC = () => {
+    const instagramProfileUrl = "https://www.instagram.com/daniel_mac_insurance";
+
+    return (
+        <div className="bg-white rounded-2xl shadow-lg shadow-zinc-200/60 p-6 border border-zinc-100 h-full animate-fade-in">
+            <a href={instagramProfileUrl} target="_blank" rel="noopener noreferrer" className="block group">
+                <div className="flex items-center mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 via-red-500 to-purple-600 p-0.5">
+                        <div className="bg-white p-0.5 rounded-full">
+                            <img
+                                className="w-full h-full rounded-full object-cover"
+                                src={`https://picsum.photos/seed/profile/80/80`}
+                                alt="Profile"
+                            />
+                        </div>
+                    </div>
+                    <div className="ml-4">
+                        <h3 className="font-bold text-zinc-800 group-hover:text-teal-600 transition-colors">daniel_mac_insurance</h3>
+                        <p className="text-sm text-zinc-500">Daniel Mac • Insurance Broker</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 mb-4">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="aspect-square bg-zinc-100 rounded-md overflow-hidden">
+                            <img 
+                                src={`https://picsum.photos/seed/post${i+1}/200/200`} 
+                                alt={`Instagram post ${i + 1}`}
+                                className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
+                            />
+                        </div>
+                    ))}
+                </div>
+                <button
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-50 text-teal-700 font-semibold rounded-lg hover:bg-teal-100 transition-colors"
+                >
+                    <InstagramIcon className="w-5 h-5" />
+                    Follow on Instagram
+                </button>
+            </a>
+        </div>
+    );
+};
+
+export default InstagramFeed;
